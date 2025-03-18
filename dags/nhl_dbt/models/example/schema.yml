@@ -2,20 +2,11 @@
 version: 2
 
 models:
-  - name: my_first_dbt_model
-    description: "A starter dbt model"
-    columns:
-      - name: id
-        description: "The primary key for this table"
-        data_tests:
-          - unique
-          - not_null
+  - name: games
+    description: "A fact table of all NHL season games and recorded measures"
 
-  - name: my_second_dbt_model
-    description: "A starter dbt model"
-    columns:
-      - name: id
-        description: "The primary key for this table"
-        data_tests:
-          - unique
-          - not_null
+  - name: teams
+    description: "A fact table of all NHL teams and their season statistics"
+
+  - name: seasonal_metrics_agg
+    description: "A fact table that brings together both regular season games and team statistics to date"
