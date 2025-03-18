@@ -10,3 +10,6 @@ webserver_config.py
 airflow.cfg
 airflow.db
 dbtvenv
+rsa_key.p8
+rsa_key.pub
+format_pk.py

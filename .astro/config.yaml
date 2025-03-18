@@ -1,2 +1,6 @@
 project:
-    name: dbt-airflow
+    name: nhl-dbt-airflow
+webserver:
+    port: 8081
+postgres:
+    port: 5435

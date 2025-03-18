@@ -6,3 +6,8 @@ logs/
 .venv
 airflow.db
 airflow.cfg
+nhlairflowvenv/
+dbtvenv/
+format_pk.py
+rsa_key.p8
+rsa_key.pub
