@@ -1,3 +1,6 @@
+
+![NHLDataPipeline drawio (1)](https://github.com/user-attachments/assets/0e11faf8-1ce4-489f-b473-f838f52bab84)
+
 Overview
 ========
 
