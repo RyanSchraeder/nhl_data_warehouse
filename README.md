@@ -27,3 +27,6 @@ Using Astronomer, deploys a Docker container in Apache Airflow. In this environm
 - Run `astro dev start` to build and host Airflow on your localhost (default to port 8080)
 - Log into Airflow at http://localhost:8080
 - Get building!
+
+## Pending Ideas 
+- Use the SportsRadar NHL API to pull additional info on players, game summary statistics on the team level, and playoff schedule
