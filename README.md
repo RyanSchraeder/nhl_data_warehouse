@@ -1,5 +1,7 @@
+# NHL Data Warehouse Project 
 
-![NHLDataPipeline drawio (1)](https://github.com/user-attachments/assets/0e11faf8-1ce4-489f-b473-f838f52bab84)
+> ![NHLDataPipeline drawio](https://github.com/user-attachments/assets/92d5aa6a-68ef-4ff0-ab0a-4f2d886fa8ef)
+
 
 Overview
 ========
