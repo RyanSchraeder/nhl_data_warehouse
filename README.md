@@ -10,7 +10,7 @@ Overview
 A data pipeline that extracts, loads, and transforms (ELT) data from [hockeyreference](https://hockeyreference.com) into game and teams statistics models within Snowflake. 
 
 #### Process
-Using Astronomer, deploys a Docker container in Apache Airflow. In this environment, data is scraped from https://hockeyreference.com for regular season data and team-level statistics. The data is normalized to a columnar format, then loaded into Snowflake. From there, the data is transformed with dbt models, all orchestrated by Airflow!
+Using Astronomer, deploys Apache Airflow and all project dependencies in a Docker container. In this environment, data is scraped from https://hockeyreference.com for regular season data and team-level statistics. The data is normalized to a columnar format, then loaded into Snowflake. From there, the data is transformed with dbt models, all orchestrated by Airflow!
 
 #### Data Pipeline Tech: 
 - Python, SQL
