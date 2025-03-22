@@ -8,8 +8,17 @@ from airflow.providers.amazon.aws.transfers.local_to_s3 import (
 from airflow.models.baseoperator import chain
 from pendulum import datetime, duration, now, from_format
 import os
+import logging
 import requests
 import pandas as pd
+
+logger = logging.getLogger('hockey_reference_etl')
+logger.setLevel(logging.DEBUG)
+stdout = logging.StreamHandler()
+stdout.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+stdout.setFormatter(formatter)
+logger.addHandler(stdout)
 
 _SNOWFLAKE_CONN_ID = "snowflake_conn"
 _SNOWFLAKE_API_ID = "snowflake_api"
@@ -74,7 +83,7 @@ def snowflake_transfer():
     load_season_data_to_s3 = LocalFilesystemToS3Operator(
         task_id="create_local_to_s3_job",
         filename=f"nhl_{now('America/Denver').year}_output_seasons.csv",
-        dest_bucket="nhl-data-raw",
+        dest_bucket="nhl-data-raw/csv",
         dest_key=f"seasons/nhl_{now('America/Denver').year}_output_seasons.csv",
         aws_conn_id = 's3_key',
         replace=True
@@ -83,8 +92,8 @@ def snowflake_transfer():
     load_teams_data_to_s3 = LocalFilesystemToS3Operator(
         task_id="create_local_to_s3_job_2",
         filename=f"nhl_{now('America/Denver').year}_output_teams.csv",
-        dest_bucket='nhl-data-raw',
-        dest_key=f'teams/nhl_{now('America/Denver').year}_output_teams.csv',
+        dest_bucket='nhl-data-raw/csv',
+        dest_key=f"teams/nhl_{now('America/Denver').year}_output_teams.csv",
         aws_conn_id = 's3_key',
         replace=True
     )
@@ -93,13 +102,13 @@ def snowflake_transfer():
         task_id="set_db",
         conn_id=_SNOWFLAKE_CONN_ID,
         database="NHL_STATS",
-        sql=f"USE DATABASE { _SNOWFLAKE_DB };"
+        sql=f"USE DATABASE {_SNOWFLAKE_DB};"
     )
     set_snowflake_schema = SQLExecuteQueryOperator(
         task_id="set_schema",
         conn_id=_SNOWFLAKE_CONN_ID,
         database="NHL_STATS",
-        sql=f"USE SCHEMA { _SNOWFLAKE_SCHEMA };"
+        sql=f"USE SCHEMA {_SNOWFLAKE_SCHEMA};"
     )
 
     query_data = SQLExecuteQueryOperator(
@@ -140,7 +149,6 @@ def snowflake_transfer():
         }
     )
 
-
     # use SQLCheck operators to check the quality of your data
     # checks for null NHL team values and fails if so
     data_quality_check = SQLColumnCheckOperator(
@@ -165,4 +173,6 @@ def snowflake_transfer():
         data_quality_check
     )
 
+
 snowflake_transfer()
+

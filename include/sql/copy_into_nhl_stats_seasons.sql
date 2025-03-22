@@ -11,7 +11,7 @@ FROM (
         $6 AS HOME_GOALS,
         $8 AS GUESTS_IN_ATTENDANCE,
         $9 AS LENGTH_OF_GAME
-    FROM @{{ params.db_name }}.{{ params.schema_name }}.nhl_raw_data_csv/{{ params.source }}/
+    FROM @{{ params.db_name }}.{{ params.schema_name }}.nhl_raw_data/csv/{{ params.source }}/
 )
 FILE_FORMAT = {{ params.db_name }}.{{ params.schema_name }}.csv
 PATTERN = '.*csv.*'
