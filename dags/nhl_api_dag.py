@@ -56,14 +56,14 @@ def extract_from_api(url, date, season_type, endpoint):
         with open(f'{filename}.json', 'w', encoding='utf-8') as file:
             json.dump(content, file, indent=4)
 
-        print('Writing to Parquet with DuckDB')
-
-        # Save as parquet with duckdb
-        duckdb.sql(f"""
-             copy(select * from read_json_auto({filename}.json))
-             to '{filename}.parquet'
-             (format parquet);
-         """)
+        # print('Writing to Parquet with DuckDB')
+        #
+        # # Save as parquet with duckdb
+        # duckdb.sql(f"""
+        #      copy(select * from read_json_auto({filename}.json))
+        #      to '{filename}.parquet'
+        #      (format parquet);
+        #  """)
 
         return logger.info("Successful retrieval of data.")
        
@@ -125,31 +125,31 @@ def task_run():
         replace=True
     )
 
-    load_reg_season_parquet_to_s3 = LocalFilesystemToS3Operator(
-        task_id="load_reg_season_parquet_to_s3",
-        filename=f'nhl_api_{now('America/Denver').year - 1}_extract_REG_schedule.json',
-        dest_bucket="nhl-data-raw",
-        dest_key=f"parquet/regular_season/nhl_api_{now('America/Denver').year - 1}_extract_REG_schedule.parquet",
-        aws_conn_id = 's3_key',
-        replace=True
-    )
+    # load_reg_season_parquet_to_s3 = LocalFilesystemToS3Operator(
+    #     task_id="load_reg_season_parquet_to_s3",
+    #     filename=f'nhl_api_{now('America/Denver').year - 1}_extract_REG_schedule.json',
+    #     dest_bucket="nhl-data-raw",
+    #     dest_key=f"parquet/regular_season/nhl_api_{now('America/Denver').year - 1}_extract_REG_schedule.parquet",
+    #     aws_conn_id = 's3_key',
+    #     replace=True
+    # )
 
-    load_playoff_season_parquet_to_s3 = LocalFilesystemToS3Operator(
-        task_id="load_playoff_season_parquet_to_s3",
-        filename=f'nhl_api_{now('America/Denver').year - 1}_extract_PST_schedule.parquet',
-        dest_bucket="nhl-data-raw",
-        dest_key=f"parquet/post_season/nhl_api_{now('America/Denver').year - 1}_extract_PST_schedule.parquet",
-        aws_conn_id = 's3_key',
-        replace=True
-    )
+    # load_playoff_season_parquet_to_s3 = LocalFilesystemToS3Operator(
+    #     task_id="load_playoff_season_parquet_to_s3",
+    #     filename=f'nhl_api_{now('America/Denver').year - 1}_extract_PST_schedule.parquet',
+    #     dest_bucket="nhl-data-raw",
+    #     dest_key=f"parquet/post_season/nhl_api_{now('America/Denver').year - 1}_extract_PST_schedule.parquet",
+    #     aws_conn_id = 's3_key',
+    #     replace=True
+    # )
 
     chain(
         regular_season_games,
         post_season_games,
         load_reg_season_json_to_s3,
-        load_playoff_season_json_to_s3,
-        load_reg_season_parquet_to_s3,
-        load_playoff_season_parquet_to_s3
+        load_playoff_season_json_to_s3
+        # load_reg_season_parquet_to_s3,
+        # load_playoff_season_parquet_to_s3
     )
 
 task_run()
