@@ -41,6 +41,9 @@ logger.addHandler(stdout)
 # Team Profile: NHL Team Profile provides top-level team information and a full roster of active players.
 # |_______________ PK: TEAM_ID, FK: LEAGUE_ID, PLAYER_ID, TEAM_ID, SEASON_ID
 # |_______________ Requires team_id for API request
+# Game Analytics: NHL Game Analytics provides detailed team and player analytics for a given game, including corsi, fenwick, on ice shots, and shots by type.
+# |_______________ PK: GAME_ID, FK: LEAGUE_ID, PLAYER_ID, TEAM_ID, SEASON_ID
+# |_______________ Requires game_id for API request
 
 _SNOWFLAKE_CONN_ID = "snowflake_conn"
 _SNOWFLAKE_API_ID = "snowflake_api"
