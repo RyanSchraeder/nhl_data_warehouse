@@ -7,7 +7,7 @@ from airflow.providers.amazon.aws.transfers.local_to_s3 import (
 )
 from airflow.models.baseoperator import chain
 from airflow.hooks.base import BaseHook
-from pendulum import datetime, duration, now, from_format
+from pendulum import datetime, duration, now
 import os
 import requests
 import duckdb
@@ -49,28 +49,34 @@ _SNOWFLAKE_CONN_ID = "snowflake_conn"
 _SNOWFLAKE_API_ID = "snowflake_api"
 _SNOWFLAKE_DB = "NHL_STATS"
 _SNOWFLAKE_SCHEMA = "RAW"
-_SNOWFLAKE_SEASON_TABLE = "REGULAR_SEASON"
+_SNOWFLAKE_SEASON_TABLE = "NHL_API_REG_SCHEDULES"
+_SNOWFLAKE_PLAYOFFS_TABLE = "NHL_API_PLAYOFF_SCHEDULES"
 _SNOWFLAKE_TEAM_TABLE = "TEAM_STATS"
 _NHL_API_CONN = BaseHook.get_connection('nhl_api_key')
 _NHL_API_KEY = _NHL_API_CONN.password
 _NHL_SEASON_SCHEDULE_URL = "https://api.sportradar.com/nhl/trial/v7/en/games"
 _NHL_SEASONS_URL = "https://api.sportradar.com/nhl/trial/v7/en/league/seasons.json"
 _NHL_TEAMS_URL = ""
-
+_PROCESS_DATE = now('America/Denver').to_date_string()
 
 
 def extract_from_api(url, date, season_type, endpoint):
 
     try:
         if endpoint == "schedule":
+            if season_type == 'PST':
+                date -= 1 # If playoffs haven't occurred in the current season's ending year, look for the playoffs the year before.
+                logger.info(f'Playoffs have not began yet. Using the prior year, {date}')
+
             url = f"{_NHL_SEASON_SCHEDULE_URL}/{date}/{season_type}/schedule.json?api_key={_NHL_API_KEY}"
             logger.info(f'URL Built: {url}')
-            filename = f'nhl_api_{date}_extract_{season_type}_{endpoint}'
+            filename = f'nhl_api_{date}_extract_{season_type}_{endpoint}_{_PROCESS_DATE}'
             logger.info(f'Filepath: {filename}')
         
         if endpoint == 'seasons':
             url = f"{_NHL_SEASONS_URL}?api_key={_NHL_API_KEY}"
-            filename = f'nhl_api_{date}_extract_{endpoint}'
+            filename = f'nhl_api_extract_seasons_{date}'
+            logger.info(f'Filepath: {filename}')
 
         headers = {"accept": "application/json"}
         response = requests.get(url, headers=headers)
@@ -116,9 +122,9 @@ def task_run():
         python_callable=extract_from_api,
         op_kwargs={
             'url': _NHL_SEASONS_URL,
-            'date': f"{now('America/Denver').date}",
-            'season_type': '',
-            'endpoint': 'seasons'
+            'date': now('America/Denver').year - 1,
+            'endpoint': 'seasons',
+            'season_type': ''
         }
     )
 
@@ -127,7 +133,7 @@ def task_run():
         python_callable=extract_from_api,
         op_kwargs={
             'url': _NHL_SEASON_SCHEDULE_URL,
-            'date': f"{now('America/Denver').year - 1}",
+            'date': now('America/Denver').year - 1,
             'season_type': 'REG',
             'endpoint': 'schedule'
         }
@@ -138,7 +144,7 @@ def task_run():
         python_callable=extract_from_api,
         op_kwargs={
             'url': _NHL_SEASON_SCHEDULE_URL,
-            'date': f"{now('America/Denver').year - 1}",
+            'date': now('America/Denver').year - 1,
             'season_type': 'PST',
             'endpoint': 'schedule'
         }
@@ -146,27 +152,27 @@ def task_run():
 
     load_seasons_json_to_s3 = LocalFilesystemToS3Operator(
         task_id="load_seasons_json_to_s3",
-        filename=f'nhl_api_{now('America/Denver').date}_extract_seasons.json',
+        filename=f'nhl_api_extract_seasons_{now('America/Denver').year - 1}.json',
         dest_bucket="nhl-data-raw",
-        dest_key=f"json/seasons/nhl_api_{now('America/Denver').date}_extract_seasons.json",
+        dest_key=f"json/seasons/nhl_api_extract_seasons_{now('America/Denver').year - 1}.json",
         aws_conn_id = 's3_key',
         replace=True
     )
 
     load_reg_season_json_to_s3 = LocalFilesystemToS3Operator(
-        task_id="load_reg_season_json_to_s3",
-        filename=f'nhl_api_{now('America/Denver').year - 1}_extract_REG_schedule.json',
+        task_id="load_reg_season_schedule_json_to_s3",
+        filename=f'nhl_api_{now('America/Denver').year - 1}_extract_REG_schedule_{_PROCESS_DATE}.json',
         dest_bucket="nhl-data-raw",
-        dest_key=f"json/regular_season/nhl_api_{now('America/Denver').year - 1}_extract_REG_schedule.json",
+        dest_key=f"json/regular_season/nhl_api_{now('America/Denver').year - 1}_extract_REG_schedule_{_PROCESS_DATE}.json",
         aws_conn_id = 's3_key',
         replace=True
     )
 
     load_playoff_season_json_to_s3 = LocalFilesystemToS3Operator(
-        task_id="load_playoff_season_json_to_s3",
-        filename=f'nhl_api_{now('America/Denver').year - 1}_extract_PST_schedule.parquet',
+        task_id="load_playoff_season_schedule_json_to_s3",
+        filename=f'nhl_api_{now('America/Denver').year - 1}_extract_PST_schedule_{_PROCESS_DATE}.json',
         dest_bucket="nhl-data-raw",
-        dest_key=f"json/post_season/nhl_api_{now('America/Denver').year - 1}_extract_PST_schedule.json",
+        dest_key=f"json/post_season/nhl_api_{now('America/Denver').year - 1}_extract_PST_schedule_{_PROCESS_DATE}.json",
         aws_conn_id = 's3_key',
         replace=True
     )
@@ -189,15 +195,71 @@ def task_run():
     #     replace=True
     # )
 
+    set_snowflake_context = SQLExecuteQueryOperator(
+        task_id="set_db",
+        conn_id=_SNOWFLAKE_CONN_ID,
+        database="NHL_STATS",
+        sql=f"USE DATABASE {_SNOWFLAKE_DB};"
+    )
+
+    set_snowflake_schema = SQLExecuteQueryOperator(
+        task_id="set_schema",
+        conn_id=_SNOWFLAKE_CONN_ID,
+        database="NHL_STATS",
+        sql=f"USE SCHEMA {_SNOWFLAKE_SCHEMA};"
+    )
+    
+    load_seasons_data = SQLExecuteQueryOperator(
+        task_id="copy_into_nhl_api_seasons", 
+        conn_id=_SNOWFLAKE_CONN_ID, 
+        database="NHL_STATS", 
+        sql="copy_into_nhl_api_seasons.sql",
+        params={
+            "db_name": _SNOWFLAKE_DB,
+            "schema_name": _SNOWFLAKE_SCHEMA
+        }
+    )
+
+    load_reg_season_data = SQLExecuteQueryOperator(
+        task_id="copy_into_nhl_api_regular_season_schedules", 
+        conn_id=_SNOWFLAKE_CONN_ID, 
+        database="NHL_STATS", 
+        sql="copy_into_nhl_api_schedules.sql",
+        params={
+            "db_name": _SNOWFLAKE_DB,
+            "schema_name": _SNOWFLAKE_SCHEMA,
+            "table_name": _SNOWFLAKE_SEASON_TABLE,
+            "season_type": "regular_season"
+        }
+    )
+
+    load_pst_season_data = SQLExecuteQueryOperator(
+        task_id="copy_into_nhl_api_playoff_season_schedules", 
+        conn_id=_SNOWFLAKE_CONN_ID, 
+        database="NHL_STATS", 
+        sql="copy_into_nhl_api_schedules.sql",
+        params={
+            "db_name": _SNOWFLAKE_DB,
+            "schema_name": _SNOWFLAKE_SCHEMA,
+            "table_name": _SNOWFLAKE_PLAYOFFS_TABLE,
+            "season_type": "post_season"
+        }
+    )
+
     chain(
         seasons_history,
         regular_season_games,
         post_season_games,
         load_seasons_json_to_s3,
         load_reg_season_json_to_s3,
-        load_playoff_season_json_to_s3
+        load_playoff_season_json_to_s3,
         # load_reg_season_parquet_to_s3,
-        # load_playoff_season_parquet_to_s3
+        # load_playoff_season_parquet_to_s3, 
+        set_snowflake_context,
+        set_snowflake_schema,
+        load_seasons_data,
+        load_reg_season_data,
+        load_pst_season_data
     )
 
 task_run()
