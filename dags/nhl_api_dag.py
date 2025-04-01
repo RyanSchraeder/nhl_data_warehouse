@@ -1,6 +1,6 @@
 from airflow.decorators import dag
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator, SQLColumnCheckOperator
-from airflow.providers.snowflake.operators.snowflake import SnowflakeSqlApiOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.sensors.filesystem import FileSensor
 from airflow.operators.python import PythonOperator
 from airflow.providers.amazon.aws.transfers.local_to_s3 import (
     LocalFilesystemToS3Operator
@@ -76,11 +76,6 @@ def extract_from_api(url, date, season_type, endpoint):
 
     try:
         if endpoint == "schedule":
-            
-            if (season_type == 'PST') & (date == now('America/Denver').year-1):
-                date -= 1 # If playoffs haven't occurred in the current season's ending year, look for the playoffs the year before.
-                logger.info(f'Playoffs have not began yet. Using the prior year, {date}')
-
             url = f"{_NHL_SEASON_SCHEDULE_URL}/{date}/{season_type}/schedule.json?api_key={_NHL_API_KEY}"
             logger.info(f'URL Built: {url}')
             filename = f'nhl_api_{season_type}_extract_{endpoint}_{_PROCESS_DATE}'
@@ -94,19 +89,11 @@ def extract_from_api(url, date, season_type, endpoint):
         response = requests.get(url, headers=headers)
         content = response.json()
 
-        # logger.info(pprint(content))
-
-        with open(f'{filename}.json', 'w', encoding='utf-8') as file:
-            json.dump(content, file, indent=4)
-
-        # print('Writing to Parquet with DuckDB')
-        #
-        # # Save as parquet with duckdb
-        # duckdb.sql(f"""
-        #      copy(select * from read_json_auto({filename}.json))
-        #      to '{filename}.parquet'
-        #      (format parquet);
-        #  """)
+        if endpoint == "schedule" and 'games' not in content.keys():
+            return logger.info(f"No data found. No data saved to file")
+        else:
+            with open(f'{filename}.json', 'w', encoding='utf-8') as file:
+                json.dump(content, file, indent=4)
 
         return logger.info("Successful retrieval of data.")
        
@@ -173,6 +160,20 @@ def task_run():
         }
     )
 
+    check_for_reg_file = FileSensor(
+        task_id='check_for_reg_file',
+        filepath=f'nhl_api_REG_extract_schedule_{_PROCESS_DATE}.json',
+        poke_interval=10,  # Seconds between checks
+        timeout=600,  # Maximum waiting time in seconds
+    )
+
+    check_for_pst_file = FileSensor(
+        task_id='check_for_pst_file',
+        filepath=f'nhl_api_PST_extract_schedule_{_PROCESS_DATE}.json',
+        poke_interval=10,  # Seconds between checks
+        timeout=600,  # Maximum waiting time in seconds
+    )
+    
     load_seasons_json_to_s3 = LocalFilesystemToS3Operator(
         task_id="load_seasons_json_to_s3",
         filename=f'nhl_api_extract_seasons_{now('America/Denver').year - 1}.json',
@@ -193,7 +194,7 @@ def task_run():
 
     load_reg_season_json_to_s3 = LocalFilesystemToS3Operator(
         task_id="load_reg_season_schedule_json_to_s3",
-        filename=  f'nhl_api_REG_extract_schedule_{_PROCESS_DATE}.json',
+        filename=f'nhl_api_REG_extract_schedule_{_PROCESS_DATE}.json',
         dest_bucket="nhl-data-raw",
         dest_key=f"json/regular_season/nhl_api_REG_extract_schedule_{_PROCESS_DATE}.json",
         aws_conn_id = 's3_key',
@@ -208,24 +209,6 @@ def task_run():
         aws_conn_id = 's3_key',
         replace=True
     )
-
-    # load_reg_season_parquet_to_s3 = LocalFilesystemToS3Operator(
-    #     task_id="load_reg_season_parquet_to_s3",
-    #     filename=f'nhl_api_{now('America/Denver').year - 1}_extract_REG_schedule.json',
-    #     dest_bucket="nhl-data-raw",
-    #     dest_key=f"parquet/regular_season/nhl_api_{now('America/Denver').year - 1}_extract_REG_schedule.parquet",
-    #     aws_conn_id = 's3_key',
-    #     replace=True
-    # )
-
-    # load_playoff_season_parquet_to_s3 = LocalFilesystemToS3Operator(
-    #     task_id="load_playoff_season_parquet_to_s3",
-    #     filename=f'nhl_api_{now('America/Denver').year - 1}_extract_PST_schedule.parquet',
-    #     dest_bucket="nhl-data-raw",
-    #     dest_key=f"parquet/post_season/nhl_api_{now('America/Denver').year - 1}_extract_PST_schedule.parquet",
-    #     aws_conn_id = 's3_key',
-    #     replace=True
-    # )
 
     set_snowflake_context = SQLExecuteQueryOperator(
         task_id="set_db",
@@ -297,17 +280,14 @@ def task_run():
         post_season_games,
         load_seasons_json_to_s3,
         load_teams_json_to_s3,
-        load_reg_season_json_to_s3,
-        load_playoff_season_json_to_s3,
-        # load_reg_season_parquet_to_s3,
-        # load_playoff_season_parquet_to_s3, 
+        regular_season_games >> check_for_reg_file >> load_reg_season_json_to_s3,
+        post_season_games >> check_for_pst_file >> load_playoff_season_json_to_s3,
         set_snowflake_context,
         set_snowflake_schema,
-        load_seasons_data,
-        load_reg_season_data,
-        load_pst_season_data,
-        load_teams_data
+        set_snowflake_context >> set_snowflake_schema >> load_seasons_data,
+        load_reg_season_json_to_s3 >> set_snowflake_context >> set_snowflake_schema >> load_reg_season_data,
+        load_playoff_season_json_to_s3 >> set_snowflake_context >> set_snowflake_schema >> load_pst_season_data,
+        set_snowflake_context >> set_snowflake_schema >> load_teams_data
     )
 
 task_run()
-
