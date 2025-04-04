@@ -18,7 +18,7 @@ Using Astronomer, deploys Apache Airflow and all project dependencies in a Docke
 - Python, SQL
 - Docker
 - Apache Airflow
-- dbt
+- dbt (raw, staging, and mart layers or medallions)
 - Astronomer
 - Snowflake
 
