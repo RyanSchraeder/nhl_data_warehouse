@@ -10,7 +10,7 @@ from pendulum import datetime, duration, now, from_format
 import os
 import logging
 import requests
-import pandas as pd
+import fireducks.pandas as pd
 
 logger = logging.getLogger('hockey_reference_etl')
 logger.setLevel(logging.DEBUG)
