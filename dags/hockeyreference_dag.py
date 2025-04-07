@@ -81,19 +81,19 @@ def snowflake_transfer():
     )
 
     load_season_data_to_s3 = LocalFilesystemToS3Operator(
-        task_id="create_local_to_s3_job",
+        task_id="load_season_data_to_s3",
         filename=f"nhl_{now('America/Denver').year}_output_seasons.csv",
-        dest_bucket="nhl-data-raw/csv",
-        dest_key=f"seasons/nhl_{now('America/Denver').year}_output_seasons.csv",
+        dest_bucket="nhl-data-raw",
+        dest_key=f"csv/seasons/nhl_{now('America/Denver').year}_output_seasons.csv",
         aws_conn_id = 's3_key',
         replace=True
     )
 
     load_teams_data_to_s3 = LocalFilesystemToS3Operator(
-        task_id="create_local_to_s3_job_2",
+        task_id="load_teams_data_to_s3",
         filename=f"nhl_{now('America/Denver').year}_output_teams.csv",
-        dest_bucket='nhl-data-raw/csv',
-        dest_key=f"teams/nhl_{now('America/Denver').year}_output_teams.csv",
+        dest_bucket='nhl-data-raw',
+        dest_key=f"csv/teams/nhl_{now('America/Denver').year}_output_teams.csv",
         aws_conn_id = 's3_key',
         replace=True
     )

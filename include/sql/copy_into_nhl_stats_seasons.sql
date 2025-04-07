@@ -2,7 +2,8 @@ COPY INTO {{ params.db_name }}.{{ params.schema_name }}.{{ params.table_name }}
 FROM (
     SELECT 
         METADATA$START_SCAN_TIME AS UPDATED_AT,
-        MD5(METADATA$FILENAME || $1::date) as UNIQUE_GAME_KEY,
+        METADATA$FILENAME AS SOURCE_FILE,
+        MD5(METADATA$FILENAME || $1::date) as UNIQUE_KEY,
         $1::date as GAME_DATE,
         $2 as GAME_TIME,
         $3 as VISITOR,

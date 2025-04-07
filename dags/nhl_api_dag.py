@@ -164,14 +164,16 @@ def task_run():
         task_id='check_for_reg_file',
         filepath=f'nhl_api_REG_extract_schedule_{_PROCESS_DATE}.json',
         poke_interval=10,  # Seconds between checks
-        timeout=600,  # Maximum waiting time in seconds
+        timeout=10,  # Maximum waiting time in seconds
+        retries=1
     )
 
     check_for_pst_file = FileSensor(
         task_id='check_for_pst_file',
         filepath=f'nhl_api_PST_extract_schedule_{_PROCESS_DATE}.json',
         poke_interval=10,  # Seconds between checks
-        timeout=600,  # Maximum waiting time in seconds
+        timeout=10,  # Maximum waiting time in seconds
+        retries=1
     )
     
     load_seasons_json_to_s3 = LocalFilesystemToS3Operator(
@@ -284,10 +286,10 @@ def task_run():
         post_season_games >> check_for_pst_file >> load_playoff_season_json_to_s3,
         set_snowflake_context,
         set_snowflake_schema,
-        set_snowflake_context >> set_snowflake_schema >> load_seasons_data,
-        load_reg_season_json_to_s3 >> set_snowflake_context >> set_snowflake_schema >> load_reg_season_data,
-        load_playoff_season_json_to_s3 >> set_snowflake_context >> set_snowflake_schema >> load_pst_season_data,
-        set_snowflake_context >> set_snowflake_schema >> load_teams_data
+        load_seasons_data,
+        load_reg_season_data,
+        load_pst_season_data,
+        load_teams_data
     )
 
 task_run()

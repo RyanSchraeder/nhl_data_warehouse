@@ -1,6 +1,8 @@
 {{ config 
     (
-        alias = 'teams'
+        alias = 'teams',
+        materialized = 'incremental', 
+        incremental_strategy = 'delete+insert'
     )
 }}
 
@@ -22,7 +24,7 @@ WITH teams AS (
         CASE WHEN UPPER(WINS_IN_REGULATION) LIKE '%DIVISION%' THEN NULL ELSE WINS_IN_REGULATION END AS WINS_IN_REGULATION,
         CASE WHEN UPPER(REGULATION_RECORD) LIKE '%DIVISION%' THEN NULL ELSE REGULATION_RECORD END AS REGULATION_RECORD,
         updated_at, 
-        unique_team_key
+        unique_key
     FROM {{ source('raw', 'team_stats') }}
 ) 
 SELECT * 
@@ -42,3 +44,7 @@ WHERE
     POINTS_PERCENTAGE_IN_REGULATION IS NOT NULL AND
     WINS_IN_REGULATION IS NOT NULL AND
     REGULATION_RECORD IS NOT NULL 
+
+{% if is_incremental() %}
+    AND unique_key not in ( select unique_key from {{ this }})
+{% endif %}

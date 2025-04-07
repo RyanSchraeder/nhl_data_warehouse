@@ -16,8 +16,9 @@ FROM (
         $13 AS WINS_IN_REGULATION,
         $14 AS REGULATION_RECORD,
         METADATA$START_SCAN_TIME AS UPDATED_AT, 
-        MD5(METADATA$FILENAME || TEAM) AS UNIQUE_TEAM_KEY
-    FROM @{{ params.db_name }}.{{ params.schema_name }}.nhl_raw_data_csv/{{ params.source }}/
+        METADATA$FILENAME AS SOURCE_FILE,
+        MD5(METADATA$FILENAME || TEAM) AS UNIQUE_KEY
+    FROM @{{ params.db_name }}.{{ params.schema_name }}.nhl_raw_data/csv/{{ params.source }}/
 )
 FILE_FORMAT = {{ params.db_name }}.{{ params.schema_name }}.csv
 PATTERN = '.*csv.*'

@@ -1,11 +1,21 @@
 {{ config 
     (
-        alias = 'seasonal_metrics_agg'
+        alias = 'seasonal_metrics_agg',
+        materialized = 'view'
     )
 }}
 
-with src1 as (select * from {{ ref('games') }}), 
-    src2 as (select * from {{ ref('teams') }})
+with src1 as (
+
+    select * 
+    from {{ ref('games') }} 
+
+), src2 as (
+
+    select * 
+    from {{ ref('teams') }}
+
+)
 
 (
     select 

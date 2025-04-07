@@ -4,6 +4,7 @@ FROM (
         metadata$start_scan_time as updated_at,
         parse_json($1) as raw_json, 
         md5(metadata$filename || raw_json) as unique_key,
+        metadata$filename as source_file,
         raw_json['games'] as games, 
         raw_json['league'] as league, 
         raw_json['season'] as season
