@@ -11,7 +11,7 @@ from pendulum import datetime, duration, now
 import os
 import requests
 import duckdb
-import pandas as pd
+import fireducks.pandas as pd
 import logging
 import json
 from pprint import pprint
