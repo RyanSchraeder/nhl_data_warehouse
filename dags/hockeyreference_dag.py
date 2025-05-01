@@ -10,7 +10,7 @@ from pendulum import datetime, duration, now, from_format
 import os
 import logging
 import requests
-import fireducks.pandas as pd
+import fireducks.pandas as fd
 
 logger = logging.getLogger('hockey_reference_etl')
 logger.setLevel(logging.DEBUG)
@@ -38,20 +38,19 @@ def extract_data_from_nhl(**kwargs):
         team_response = requests.get(team_url)
         szn_response.raise_for_status()
         team_response.raise_for_status()
+
+        seasons_transform = fd.read_html(szn_response.text)
+        seasons_df = seasons_transform[0]
+        seasons_df.to_csv(f'nhl_{kwargs["date"]}_output_seasons.csv', index=False)
+
+        teams_transform = fd.read_html(team_response.text)
+        teams_df = teams_transform[0]
+        teams_df.to_csv(f'nhl_{kwargs["date"]}_output_teams.csv', index=False)
+
+        logger.info(f"File storage successful in local system: {os.listdir('.')}")
+
     except requests.exceptions.RequestException as e:
         raise ValueError(f"Error fetching NHL data: {e}")
-
-    seasons_df = pd.read_html(szn_response.text)
-    teams_df = pd.read_html(team_response.text)
-    output_seasons = pd.concat(seasons_df, axis=0).reset_index(drop=True)
-    output_teams = pd.concat(teams_df, axis=0).reset_index(drop=True)
-
-    try:
-        output_seasons.to_csv(f'nhl_{kwargs["date"]}_output_seasons.csv', index=False)
-        output_teams.to_csv(f'nhl_{kwargs["date"]}_output_teams.csv', index=False)
-
-        print(f"File storage successful in local system: {os.listdir('.')}")
-
     except Exception as e:
         raise f"Issue copying files to local filesystem: {e}"
     
@@ -111,18 +110,6 @@ def snowflake_transfer():
         sql=f"USE SCHEMA {_SNOWFLAKE_SCHEMA};"
     )
 
-    query_data = SQLExecuteQueryOperator(
-        task_id="query_test",
-        conn_id=_SNOWFLAKE_CONN_ID,
-        database="NHL_STATS",
-        sql="query_nhl_stats_season.sql",
-        params={
-            "db_name": _SNOWFLAKE_DB,
-            "schema_name": _SNOWFLAKE_SCHEMA,
-            "table_name": _SNOWFLAKE_SEASON_TABLE
-        }
-    )
-
     load_seasons_data = SQLExecuteQueryOperator(
         task_id="copy_into_nhl_seasons_data", 
         conn_id=_SNOWFLAKE_CONN_ID, 
@@ -167,7 +154,6 @@ def snowflake_transfer():
         load_teams_data_to_s3,
         set_snowflake_context,
         set_snowflake_schema,
-        query_data,
         load_seasons_data,
         load_teams_data,
         data_quality_check

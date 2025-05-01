@@ -5,5 +5,8 @@ sources:
     database: "NHL_STATS"
     schema: "RAW"
     tables:
-      - name: regular_season
+      - name: nhl_api_reg_schedules
+      - name: nhl_api_playoff_schedules
+      - name: nhl_api_seasons
+      - name: nhl_api_teams
       - name: team_stats

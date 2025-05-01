@@ -4,3 +4,4 @@ apache-airflow-providers-snowflake
 apache-airflow-providers-amazon
 apache-airflow[crypto]
 duckdb
+fireducks

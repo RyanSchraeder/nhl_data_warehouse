@@ -67,6 +67,11 @@ _NHL_SEASONS_URL = "https://api.sportradar.com/nhl/trial/v7/en/league/seasons.js
 _NHL_TEAMS_URL = "https://api.sportradar.com/nhl/trial/v7/en/league/teams.json"
 _PROCESS_DATE = now('America/Denver').to_date_string()
 
+# def extract_team_roster(url, date, team_id):
+
+#     url = f"{url}?api_key={_NHL_API_KEY}"
+#     filename = f'nhl_api_extract_team_profile_{team_id}_{date}'
+#     headers = {"accept": "application/json"}
 
 def extract_from_api(url, date, season_type, endpoint):
 
@@ -138,6 +143,17 @@ def task_run():
         }
     )
 
+    # team_profile = PythonOperator(
+    #     task_id="team_profile_extract",
+    #     python_callable=extract_from_api,
+    #     op_kwargs={
+    #         'url': f'{_NHL_TEAMS_URL}/{},
+    #         'date': now('America/Denver').year - 1,
+    #         'endpoint': 'teams',
+    #         'season_type': ''
+    #     }
+    # )
+    
     regular_season_games = PythonOperator(
         task_id="reg_season_extract",
         python_callable=extract_from_api,
